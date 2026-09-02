@@ -1,149 +1,337 @@
-# Hyper-YOLO
+# HSDNet
 
-This repository contains the source code for the paper "Hyper-YOLO: When Visual Object Detection Meets Hypergraph Computation" published in IEEE Transactions on Pattern Analysis and Machine Intelligence (TPAMI) 2025 by [Yifan Feng](https://fengyifan.site/), Jiangang Huang, Shaoyi Du, Shihui Ying, Jun-Hai Yong, Yipeng Li, Guiguang Ding, Rongrong Ji, and Yue Gao*. This paper is available at [here](https://www.arxiv.org/abs/2408.04804).
+**Hypergraph-enhanced Small Object Detection Network for UAV Aerial Imagery**
 
+[![Python 3.10](https://img.shields.io/badge/Python-3.10-blue.svg)](https://www.python.org/)
+[![PyTorch](https://img.shields.io/badge/PyTorch-Framework-EE4C2C.svg)](https://pytorch.org/)
+[![License: AGPL-3.0](https://img.shields.io/badge/License-AGPL--3.0-green.svg)](LICENSE)
+
+This repository provides the official PyTorch implementation of **HSDNet**, a hypergraph-enhanced detection framework designed for small-object detection in UAV aerial imagery.
+
+HSDNet is developed from [Hyper-YOLO](https://github.com/iMoonLab/Hyper-YOLO). It strengthens small-object representations before substantial backbone downsampling, propagates shallow high-resolution spatial details through the detection neck, and provides additional overlap-based supervision for low-overlap small-object samples.
+
+## Overview
+
+Objects captured from UAV platforms are often small, densely distributed, and mutually occluded. Their weak visual cues may be progressively attenuated during successive backbone downsampling. Meanwhile, conventional detection pyramids do not fully exploit shallow high-resolution information, and small bounding boxes are highly sensitive to pixel-level localization deviations.
+
+HSDNet addresses these challenges through three complementary improvements built upon the cross-level and cross-position hypergraph representation capability of Hyper-YOLO.
 
 <details>
-  <summary>
-  <font size="+1">Abstract</font>
-  </summary>
-We introduce Hyper-YOLO, a new object detection method that integrates hypergraph computations to capture the complex high-order correlations among visual features. Traditional YOLO models, while powerful, have limitations in their neck designs that restrict the integration of cross-level features and the exploitation of high-order feature interrelationships. To address these challenges, we propose the Hypergraph Computation Empowered Semantic Collecting and Scattering (HGC-SCS) framework, which transposes visual feature maps into a semantic space and constructs a hypergraph for high-order message propagation. This enables the model to acquire both semantic and structural information, advancing beyond conventional feature-focused learning.
-Hyper-YOLO incorporates the proposed Mixed Aggregation Network (MANet) in its backbone for enhanced feature extraction and introduces the Hypergraph-Based Cross-Level and Cross-Position Representation Network (HyperC2Net) in its neck. HyperC2Net operates across five scales and breaks free from traditional grid structures, allowing for sophisticated high-order interactions across levels and positions. This synergy of components positions Hyper-YOLO as a state-of-the-art architecture, as evidenced by its superior performance on the COCO dataset. Hyper-YOLO-N significantly outperforms the advanced YOLOv8-N with 12\% $\text{AP}^{val}$ improvements. Compared with SOTA Gold-YOLO-N, Hyper-YOLO-N achieves 5\% $\text{AP}^{val}$ improvement with only 72\% parameters.
+<summary><strong>Abstract</strong></summary>
+
+Targets in UAV aerial imagery are typically small, densely distributed, and frequently occluded, posing challenges to spatial position perception, detail preservation during successive downsampling, effective neck-level feature propagation and fusion, and accurate small-object bounding-box regression.
+
+To address these issues, we propose HSDNet, a hypergraph-enhanced framework for UAV small-object detection. First, a Detail- and Position-Aware Feature Enhancement (DPFE) module is introduced into Stages 2 and 3 of the backbone to strengthen small-object representations before further downsampling. It models local details and contextual cues across multiple patch scales while explicitly encoding horizontal and vertical positional information. Second, a high-resolution multi-scale detection neck shifts the detection scales toward higher resolutions and fuses shallow fine-grained spatial information with cross-stage semantic context enhanced by hypergraph reasoning. Finally, an auxiliary bounding-box regression strategy based on Inner-CIoU constructs scaled predicted and ground-truth boxes for overlap computation, providing additional overlap-based supervision for low-overlap small-object samples.
+
+Experiments on VisDrone2019 and HazyDet demonstrate that HSDNet improves UAV small-object detection performance while reducing the parameter count relative to the Hyper-YOLO baseline.
+
 </details>
 
-## NEWS 🔥
-- 2024/12/14: Our paper has been accepted by TPAMI.
+## Main Contributions
 
-# Performance on MS COCO
+### 1. Detail- and Position-Aware Feature Enhancement
 
-<img src="docs/performance_v11.jpg" width="40%">
+The **Detail- and Position-Aware Feature Enhancement (DPFE)** module is introduced into Stages 2 and 3 of the backbone before further downsampling.
 
-## Hyper-YOLO
+DPFE combines:
 
-Our Hyper-YOLO enhances the YOLOv8 architecture with hypergraph computation. The comparsion of four scale models are provided in the following table.
+- PPA blocks for modeling local details and contextual information across different patch scales;
+- a feature-selection mechanism for emphasizing informative patch responses; and
+- branch- and fusion-level Coordinate Attention for encoding horizontal and vertical positional cues.
 
-| Model            | Test Size | $AP^{val}$ | $AP^{val}_{50}$ | Params | FLOPs |
-| ---              | ---       | ---  | ---  | ---    | ---     | 
-| YOLOv8-N         | 640       | 37.3 | 52.6 | 3.2 M  | 8.7 G   |
-| YOLOv8-S         | 640       | 44.9 | 61.8 | 11.2 M | 28.6 G  |
-| YOLOv8-M         | 640       | 50.2 | 67.2 | 25.9 M | 78.9 G  |
-| YOLOv8-L         | 640       | 52.9 | 69.8 | 43.7 M | 165.2 G |
-| HyperYOLO-T      | 640       | 38.5 | 54.5 | 3.2M   | 9.6G    |
-| HyperYOLO-N      | 640       | 41.8 | 58.3 | 4.0M   | 11.4G   |
-| HyperYOLO-S      | 640       | 48.0 | 65.1 | 14.8M  | 39.0G   |
-| HyperYOLO-M      | 640       | 52.0 | 69.0 | 33.8M  | 103.3G  |
-| HyperYOLO-L      | 640       | 53.8 | 70.9 | 56.3M  | 211.0G  |
+This design provides more discriminative and spatially coherent small-object features for subsequent multi-stage feature aggregation and hypergraph modeling.
 
+### 2. High-resolution multi-scale detection neck
 
-## Hyper-YOLO v1.1
-Furthermore, we replace the neck of YOLOv9 with the proposed HyperC2Net of our Hyper-YOLO, termed Hyper-YOLOv1.1. The source codes of Hyper-YOLOv1.1 are avaiable in [here](https://github.com/iMoonLab/Hyper-YOLOv1.1). 
+The original lowest-resolution prediction branch is replaced with a newly introduced high-resolution prediction branch.
 
-Clearly, in each scale, the Hyper-YOLOv1.1 outperforms the YOLOv9, which demonstrates the effectiveness of our HyperC2Net in capturing high-order feature correlations. The comparison of four scale models are provided in the following table
+For an input resolution of `640 × 640`, HSDNet performs detection at:
 
-| Model            | Test Size | $AP^{val}$ | $AP^{val}_{50}$ | Params | FLOPs |
-| ---              | ---       | ---  | ---  | ---    | ---     | 
-| YOLOv9-T         | 640       | 38.3 | 53.1 | 2.0M   | 7.7G    |
-| YOLOv9-S         | 640       | 46.8 | 63.4 | 7.1M   | 26.4G   |
-| YOLOv9-M         | 640       | 51.4 | 68.1 | 20.0M  | 76.3G   |
-| YOLOv9-C         | 640       | 53.0 | 70.2 | 25.3M  | 102.1G  |
-| Hyper-YOLOv1.1-T | 640       | 40.3 | 55.6 | 2.5M   | 10.8G   |
-| Hyper-YOLOv1.1-S | 640       | 48.0 | 64.5 | 7.6M   | 29.9G   |
-| Hyper-YOLOv1.1-M | 640       | 51.8 | 69.2 | 21.2M  | 87.4G   |
-| Hyper-YOLOv1.1-C | 640       | 53.2 | 70.4 | 29.8M  | 115.5G  |
+- `160 × 160`;
+- `80 × 80`; and
+- `40 × 40`.
 
+The redesigned neck combines shallow fine-grained spatial details with cross-level semantic information enhanced through multi-stage feature aggregation and hypergraph computation.
 
-# Installation
+### 3. Inner-CIoU-based auxiliary regression
 
-Clone repo and create conda environment (recommended).
-Then install requirements.txt in a Python>=3.8.0 environment, including PyTorch>=1.8.
-The command is as follows.
+The auxiliary bounding-box regression strategy constructs scaled predicted and ground-truth boxes using a fixed scaling ratio of `1.10`.
+
+The auxiliary overlap calculation extends the effective overlap range and provides additional overlap-based supervision for low-IoU small-object samples.
+
+## Results
+
+### Main comparison
+
+| Dataset | Model | mAP50 | mAP50-95 | Parameters | GFLOPs |
+|---|---|---:|---:|---:|---:|
+| VisDrone2019 | Hyper-YOLO-m | 0.430 | 0.264 | 33.34 M | 103.1 |
+| VisDrone2019 | **HSDNet** | **0.493** | **0.304** | **26.41 M** | 131.2 |
+| HazyDet | Hyper-YOLO-m | 0.750 | 0.546 | 33.33 M | 103.1 |
+| HazyDet | **HSDNet** | **0.777** | **0.567** | **26.41 M** | 131.2 |
+
+Compared with the Hyper-YOLO baseline:
+
+- on VisDrone2019, HSDNet improves mAP50 by **6.3 percentage points** and mAP50-95 by **4.0 percentage points**;
+- on HazyDet, HSDNet improves mAP50 by **2.7 percentage points** and mAP50-95 by **2.1 percentage points**;
+- AP for small objects on VisDrone2019 increases from `0.129` to `0.184`, an absolute gain of **5.5 percentage points**; and
+- the parameter count decreases from `33.34 M` to `26.41 M`, a reduction of approximately **20.8%**.
+
+The increase in computational cost is mainly caused by feature processing and prediction at higher spatial resolutions.
+
+### Scale-specific results on VisDrone2019
+
+| Model | AP_S | AP_M | AP_L | GFLOPs |
+|---|---:|---:|---:|---:|
+| Hyper-YOLO | 0.129 | 0.349 | 0.464 | 103.1 |
+| **HSDNet** | **0.184** | **0.384** | **0.476** | 131.2 |
+
+The largest improvement is obtained for small objects, which is consistent with the intended design objective of HSDNet.
+
+## Ablation Study
+
+The ablation experiments were conducted on VisDrone2019 using Hyper-YOLO as the baseline.
+
+- `M1`: DPFE module;
+- `M2`: high-resolution multi-scale detection neck;
+- `M3`: Inner-CIoU loss.
+
+| Configuration | M1 | M2 | M3 | Precision | Recall | mAP50 | mAP50-95 | Parameters |
+|---|:---:|:---:|:---:|---:|---:|---:|---:|---:|
+| S0 | No | No | No | 0.536 | 0.422 | 0.430 | 0.264 | 33.34 M |
+| S1 | Yes | No | No | 0.546 | 0.428 | 0.439 | 0.267 | 34.04 M |
+| S2 | No | Yes | No | 0.576 | 0.463 | 0.485 | 0.298 | 25.71 M |
+| S3 | No | No | Yes | 0.543 | 0.418 | 0.433 | 0.265 | 33.34 M |
+| S4 | Yes | Yes | No | **0.586** | 0.464 | 0.492 | 0.302 | 26.41 M |
+| **S5 (HSDNet)** | **Yes** | **Yes** | **Yes** | 0.579 | **0.469** | **0.493** | **0.304** | **26.41 M** |
+
+## Installation
+
+Clone the repository and create a Python environment:
 
 ```bash
-git clone https://github.com/iMoonLab/Hyper-YOLO.git  # clone
-cd Hyper-YOLO
-conda create -n Hyper-YOLO python=3.8
-conda activate Hyper-YOLO
-pip install -r requirements.txt  # install
-```
-You can also use the environment.yaml file and the conda command to install the required environment.
-```bash
-conda env create -f environment.yaml
+git clone https://github.com/zyc-commit-cloud/HSDNet.git
+cd HSDNet
+
+conda create -n hsdnet python=3.10 -y
+conda activate hsdnet
+
+python -m pip install --upgrade pip
+pip install -r requirements.txt
+pip install -e . --no-deps
 ```
 
-# Datasets
-Data Preparation: Download the MS COCO dataset images (training, validation, and test sets) and corresponding labels, or prepare your custom dataset as shown below. Additionally, modify the dataset path in ultralytics/cfg/datasets/coco.yaml to reflect the location of your data.
-```bash
-coco
---images
-  --train2017
-  --val2017
---labels
-  --train2017
-  --val2017
-```
-# Training
-Most of training configurations can change in the "Train settings" section of ultralytics/cfg/default.yaml. 
-The key factors are model, data, img, epoches, batch, device and training hyperparameters.
-For example, you can use "model: hyper-yolon.yaml" to train an object detection model.
-```bash
-python ultralytics/models/yolo/detect/train.py 
+If necessary, install a PyTorch build compatible with the CUDA version available on your system.
+
+## Experimental Setup
+
+The experiments reported in the paper used the following settings:
+
+| Item | Setting |
+|---|---|
+| GPU | NVIDIA GeForce RTX 4090 |
+| CPU | Intel Xeon Gold 6430 |
+| Framework | PyTorch |
+| CUDA | 11.8 |
+| Python | 3.10 |
+| Input resolution | 640 × 640 |
+| Training epochs | 200 |
+| Batch size | 4 |
+| Optimizer | SGD |
+| Initial learning rate | 0.01 |
+| Momentum | 0.937 |
+
+## Dataset Preparation
+
+The experiments use the following two UAV object-detection datasets:
+
+- [VisDrone2019](https://github.com/VisDrone/VisDrone-Dataset);
+- [HazyDet](https://github.com/GrokCV/HazyDet).
+
+The original annotations should be converted to the Ultralytics YOLO detection format before training.
+
+### VisDrone2019
+
+VisDrone2019 contains 10,209 static images across 10 object categories. The dataset is divided into:
+
+- 6,471 training images;
+- 548 validation images; and
+- 3,190 testing images.
+
+An example directory structure is:
+
+```text
+VisDrone2019/
+├── images/
+│   ├── train/
+│   ├── val/
+│   └── test/
+└── labels/
+    ├── train/
+    ├── val/
+    └── test/
 ```
 
-# Evaluation
-Most of evaluation configurations can change in the "Val/Test settings" section of ultralytics/cfg/default.yaml. 
-The key factors are model(weight), data, img, batch, conf, iou, half.
-```bash
-python ultralytics/models/yolo/detect/val.py
-```
-## Detection
-Most of predict configurations can change in the "Predict settings" section of ultralytics/cfg/default.yaml.
-The key factors are model(weight), source, img, conf, iou.
-```bash
-python ultralytics/models/yolo/detect/predict.py
-```
-![Detection](docs/vis_det.jpg)
+Create a dataset configuration file such as `VisDrone.yaml`:
 
-## Segmentation
-Here, our instance segmentation model configuration remains consistent with YOLOv8, by changing the object detection output head to an instance segmentation output head, while the backbone and neck remain unchanged. The model's training and testing process is similar to that of object detection.
-For example, you can use "model: hyper-yolon-seg.yaml" to train an instance segmentation model.
-```bash
-python ultralytics/models/yolo/segment/train.py
-python ultralytics/models/yolo/segment/val.py
-python ultralytics/models/yolo/segment/predict.py 
-```
-![Detection](docs/vis_seg.jpg)
+```yaml
+path: /absolute/path/to/VisDrone2019
 
+train: images/train
+val: images/val
+test: images/test
 
-# Export
-Here is an example code for exporting an ONNX model. If you need to export other formats, please refer to our example code and the YOLOv8 documentation.
-```bash
-python ultralytics/utils/export_onnx.py
+names:
+  0: pedestrian
+  1: people
+  2: bicycle
+  3: car
+  4: van
+  5: truck
+  6: tricycle
+  7: awning-tricycle
+  8: bus
+  9: motor
 ```
 
-# Acknowledgement
-Our code is built based on the [YOLOv8](https://github.com/ultralytics/ultralytics).
-Thanks for their great work!
+### HazyDet
 
-# Citation
-If you find our work useful in your research, please consider citing:
+HazyDet contains 11,600 UAV images collected from real-world hazy scenes and synthetically generated hazy conditions, with approximately 383,000 annotated instances.
+
+Prepare HazyDet in the same YOLO detection format and create a corresponding dataset YAML file. Refer to the official HazyDet repository for dataset download instructions and its original directory organization.
+
+## Training
+
+The HSDNet model configuration is located at:
+
+```text
+ultralytics/cfg/models/hsdnet/HSDNet.yaml
+```
+
+Train HSDNet using the command-line interface:
+
+```bash
+yolo detect train model=ultralytics/cfg/models/hsdnet/HSDNet.yaml data=/path/to/VisDrone.yaml epochs=200 imgsz=640 batch=4 device=0 optimizer=SGD lr0=0.01 momentum=0.937
+```
+
+Equivalent Python usage:
+
+```python
+from ultralytics import YOLO
+
+model = YOLO("ultralytics/cfg/models/hsdnet/HSDNet.yaml")
+
+model.train(
+    data="/path/to/VisDrone.yaml",
+    epochs=200,
+    imgsz=640,
+    batch=4,
+    device=0,
+    optimizer="SGD",
+    lr0=0.01,
+    momentum=0.937,
+)
+```
+
+Replace `/path/to/VisDrone.yaml` with the actual path to the dataset configuration file.
+
+## Evaluation
+
+Evaluate a trained model on the validation or test split:
+
+```bash
+yolo detect val model=/path/to/best.pt data=/path/to/VisDrone.yaml imgsz=640 batch=4 device=0
+```
+
+Equivalent Python usage:
+
+```python
+from ultralytics import YOLO
+
+model = YOLO("/path/to/best.pt")
+
+metrics = model.val(
+    data="/path/to/VisDrone.yaml",
+    imgsz=640,
+    batch=4,
+    device=0,
+)
+```
+
+## Inference
+
+Run inference on an image, directory, or video:
+
+```bash
+yolo detect predict model=/path/to/best.pt source=/path/to/images_or_video imgsz=640 device=0 save=True
+```
+
+Equivalent Python usage:
+
+```python
+from ultralytics import YOLO
+
+model = YOLO("/path/to/best.pt")
+
+model.predict(
+    source="/path/to/images_or_video",
+    imgsz=640,
+    device=0,
+    save=True,
+)
+```
+
+Pretrained weights are not currently included in this repository. Replace `/path/to/best.pt` with the actual path to the trained model weights.
+
+## Project Structure
+
+The principal files related to HSDNet are:
+
+```text
+HSDNet/
+├── ultralytics/
+│   ├── cfg/models/hsdnet/HSDNet.yaml
+│   ├── nn/modules/block.py
+│   ├── nn/tasks.py
+│   └── utils/loss.py
+├── requirements.txt
+├── setup.py
+└── README.md
+```
+
+Their roles are:
+
+- `HSDNet.yaml`: defines the HSDNet backbone and high-resolution detection neck;
+- `block.py`: contains the DPFE, PPA, Coordinate Attention, and hypergraph-related modules;
+- `tasks.py`: registers the model components and constructs the network;
+- `loss.py`: contains the Inner-CIoU-based bounding-box regression implementation.
+
+## Citation
+
+If this work is useful in your research, please cite it. The bibliographic information will be updated after publication.
 
 ```bibtex
-@article{feng2024hyper,
-  title={Hyper-YOLO: When Visual Object Detection Meets Hypergraph Computation},
-  author={Feng, Yifan and Huang, Jiangang and Du, Shaoyi and Ying, Shihui and Yong, Jun-Hai and Li, Yipeng and Ding, Guiguang and Ji, Rongrong and Gao, Yue},
-  journal={IEEE Transactions on Pattern Analysis and Machine Intelligence},
-  year={2025},
-  publisher={IEEE}
+@article{zhou2026hsdnet,
+  title  = {HSDNet: Hypergraph-enhanced Small Object Detection Network for UAV Aerial Imagery},
+  author = {Zhou, Yucheng and Yang, Sen and Li, Wenyu and Tong, Jigang and Wang, Zenghui},
+  year   = {2026},
+  note   = {Manuscript under review}
 }
 ```
 
-# About Hypergraph Computation
-Hypergraph computation is a powerful tool to capture high-order correlations among visual features. Compared with graphs, each hyperedge in a hypergraph can connect more than two vertices, which is more flexible to model complex correlations. Now, learning with high-order correlations still remains a under-explored area in computer vision. We hope our work can inspire more research in this direction. If you are interested in hypergraph computation, please refer to our series of works on hypergraph computation in the follows:
+## Acknowledgements
 
-- [Hypergraph Learning: Methods and Practices](https://ieeexplore.ieee.org/abstract/document/9264674)
-- [Hypergraph Nerual Networks](https://arxiv.org/abs/1809.09401)
-- [HGNN+: General Hypergraph Nerual Networks](https://ieeexplore.ieee.org/document/9795251/)
-- [Hypergraph Isomorphism Computation](https://arxiv.org/pdf/2307.14394)
+This implementation is developed from:
 
-# Contact
-Hyper-YOLO is maintained by [iMoon-Lab](http://moon-lab.tech/), Tsinghua University. If you have any questions, please feel free to contact us via email: [Yifan Feng](mailto:evanfeng97@gmail.com) and [Jiangang Huang](mailto:mywhy666@stu.xjtu.edu.cn).
+- [Hyper-YOLO](https://github.com/iMoonLab/Hyper-YOLO);
+- [Ultralytics YOLOv8](https://github.com/ultralytics/ultralytics).
+
+We thank the authors and maintainers for making their work publicly available.
+
+## License
+
+This repository is released under the [GNU Affero General Public License v3.0](LICENSE).
+
+## Contact
+
+For questions, please open an issue in this repository or contact the corresponding author at [tjgtjut@163.com](mailto:tjgtjut@163.com).
