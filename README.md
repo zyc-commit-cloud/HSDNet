@@ -21,7 +21,7 @@ HSDNet addresses these challenges through three complementary improvements built
 
 Targets in UAV aerial imagery are typically small, densely distributed, and frequently occluded, posing challenges to spatial position perception, detail preservation during successive downsampling, effective neck-level feature propagation and fusion, and accurate small-object bounding-box regression.
 
-To address these issues, we propose HSDNet, a hypergraph-enhanced framework for UAV small-object detection. First, a Detail- and Position-Aware Feature Enhancement (DPFE) module is introduced into Stages 2 and 3 of the backbone to strengthen small-object representations before further downsampling. It models local details and contextual cues across multiple patch scales while explicitly encoding horizontal and vertical positional information. Second, a high-resolution multi-scale detection neck shifts the detection scales toward higher resolutions and fuses shallow fine-grained spatial information with cross-stage semantic context enhanced by hypergraph reasoning. Finally, an auxiliary bounding-box regression strategy based on Inner-CIoU constructs scaled predicted and ground-truth boxes for overlap computation, providing additional overlap-based supervision for low-overlap small-object samples.
+To address these issues, we propose HSDNet, a hypergraph-enhanced framework for UAV small-object detection. First, a Detail- and Position-Aware Feature Enhancement (DPFE) module is introduced into Stages 2 and 3 of the backbone to strengthen small-object representations before further downsampling. It models local details and contextual cues across multiple patch scales while explicitly encoding horizontal and vertical positional information. Second, a HRMS-Neck shifts the detection scales toward higher resolutions and fuses shallow fine-grained spatial information with cross-stage semantic context enhanced by hypergraph reasoning. Finally, an auxiliary bounding-box regression strategy based on Inner-CIoU constructs scaled predicted and ground-truth boxes for overlap computation, providing additional overlap-based supervision for low-overlap small-object samples.
 
 Experiments on VisDrone2019 and HazyDet demonstrate that HSDNet improves UAV small-object detection performance while reducing the parameter count relative to the Hyper-YOLO baseline.
 
@@ -41,7 +41,7 @@ DPFE combines:
 
 This design provides more discriminative and spatially coherent small-object features for subsequent multi-stage feature aggregation and hypergraph modeling.
 
-### 2. High-resolution multi-scale detection neck
+### 2. HRMS-Neck
 
 The original lowest-resolution prediction branch is replaced with a newly introduced high-resolution prediction branch.
 
@@ -93,7 +93,7 @@ The largest improvement is obtained for small objects, which is consistent with 
 The ablation experiments were conducted on VisDrone2019 using Hyper-YOLO as the baseline.
 
 - `M1`: DPFE module;
-- `M2`: high-resolution multi-scale detection neck;
+- `M2`: HRMS-Neck;
 - `M3`: Inner-CIoU loss.
 
 | Configuration | M1 | M2 | M3 | Precision | Recall | mAP50 | mAP50-95 | Parameters |
@@ -301,7 +301,7 @@ HSDNet/
 
 Their roles are:
 
-- `HSDNet.yaml`: defines the HSDNet backbone and high-resolution detection neck;
+- `HSDNet.yaml`: defines the HSDNet backbone and HRMS-Neck;
 - `block.py`: contains the DPFE, PPA, Coordinate Attention, and hypergraph-related modules;
 - `tasks.py`: registers the model components and constructs the network;
 - `loss.py`: contains the Inner-CIoU-based bounding-box regression implementation.
